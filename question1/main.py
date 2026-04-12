@@ -1,4 +1,5 @@
 from encrypt import encrypt
+from decrypt import decrypt
 
 
 def main():
@@ -13,6 +14,12 @@ def main():
 
     f = open("encrypted_text.txt", "w", encoding="utf-8")
     f.write(encrypted)
+    f.close()
+
+    decrypted = decrypt(encrypted, shift1, shift2)
+
+    f = open("decrypted_text.txt", "w", encoding="utf-8")
+    f.write(decrypted)
     f.close()
 
 
