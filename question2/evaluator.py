@@ -1,40 +1,24 @@
-"""
-HIT137 Assignment 2 – Question 2
-Mathematical Expression Evaluator  (evaluator.py)
-
-Implements a recursive-descent parser with no classes.
-
-Grammar (precedence low → high)
-────────────────────────────────
-  expr    →  term  ( ('+' | '-')  term  )*
-  term    →  unary ( ('*' | '/')  unary | <implicit *> )*
-  unary   →  '-' unary  |  primary
-  primary →  NUMBER  |  '(' expr ')'
-
-Implicit multiplication is handled at the *term* level: two consecutive
-primaries (a number or a parenthesised group) are treated as multiplication.
-
-Public API
-──────────
-  evaluate_file(input_path: str) -> list[dict]
-      Reads expressions one-per-line from *input_path*, writes output.txt
-      to the same directory, and returns a list of result dicts.
-"""
+# HIT137 Assignment 2 - Question 2
+# Mathematical Expression Evaluator
+# Reads expressions from a file, parses and evaluates each one
+# Uses recursive descent parsing with plain functions (no classes)
+#
+# How the parser works (from lowest to highest priority):
+#   expr    -> handles + and -
+#   term    -> handles * and / and implicit multiplication
+#   unary   -> handles negative sign like -5 or -(3+4)
+#   primary -> handles numbers and brackets
 
 import os
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Tokeniser
-# ═══════════════════════════════════════════════════════════════════════════════
+# --- Tokeniser ---
+# Breaks the raw expression string into a list of tokens
+# Each token is a tuple like ('NUM', '3') or ('OP', '+')
 
 def tokenize(expr):
-    """
-    Convert *expr* into a list of (type, value) tuples.
-    Raises ValueError for any unrecognised character.
-
-    Token types: NUM, OP, LPAREN, RPAREN, END
-    """
+   # go through each character and figure out what token it belongs to
+    # raises ValueError if we find something we don't recognise (like @)
     tokens = []
     i = 0
     while i < len(expr):
@@ -44,7 +28,8 @@ def tokenize(expr):
             i += 1
             continue
 
-        if ch.isdigit() or ch == '.':          # numeric literal
+        if ch.isdigit() or ch == '.':         
+                        # keep reading while we still have digits or decimal point
             j = i
             while j < len(expr) and (expr[j].isdigit() or expr[j] == '.'):
                 j += 1
@@ -65,16 +50,14 @@ def tokenize(expr):
 
         else:
             raise ValueError(f"Invalid character '{ch}' in expression")
-
+    # always add an END token so the parser knows when to stop
     tokens.append(('END', 'END'))
     return tokens
 
 
 def tokens_to_str(tokens):
-    """
-    Format a token list as the required '[TYPE:value] … [END]' string.
-    e.g. [NUM:3] [OP:+] [NUM:5] [END]
-    """
+    # formats the token list into the required output string
+    # e.g. [NUM:3] [OP:+] [NUM:5] [END]
     parts = []
     for typ, val in tokens:
         if   typ == 'END':    parts.append('[END]')
@@ -85,17 +68,16 @@ def tokens_to_str(tokens):
     return ' '.join(parts)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Recursive-descent parser
-# Returns a nested-tuple AST:
-#   ('num',   float_value)
-#   ('neg',   operand_node)
-#   ('binop', op_str, left_node, right_node)
-# ═══════════════════════════════════════════════════════════════════════════════
+# --- Parser ---
+# Takes the token list and builds an AST (abstract syntax tree)
+# The tree is made of nested tuples:
+#   ('num', value)               -> a number
+#   ('neg', operand)             -> unary negation like -5
+#   ('binop', op, left, right)   -> binary operation like 3 + 5
 
 def parse(tokens):
-    """Parse *tokens* into an AST.  Raises ValueError on syntax errors."""
-    pos = [0]   # mutable box so inner functions can advance the index
+    # we use a list with one element so the inner functions can update the position
+    pos = [0]   
 
     def peek():
         return tokens[pos[0]]
@@ -105,8 +87,9 @@ def parse(tokens):
         pos[0] += 1
         return tok
 
-    # ── expr: lowest precedence – addition and subtraction ───────────────────
+   
     def parse_expr():
+        # handles + and - (lowest precedence)
         left = parse_term()
         while peek()[0] == 'OP' and peek()[1] in ('+', '-'):
             op    = consume()[1]
@@ -114,8 +97,8 @@ def parse(tokens):
             left  = ('binop', op, left, right)
         return left
 
-    # ── term: explicit * / and implicit multiplication ───────────────────────
     def parse_term():
+         # handles * and / and also implicit multiplication like 2(3+4)
         left = parse_unary()
         while True:
             if peek()[0] == 'OP' and peek()[1] in ('*', '/'):
@@ -123,25 +106,26 @@ def parse(tokens):
                 right = parse_unary()
                 left  = ('binop', op, left, right)
             elif peek()[0] in ('NUM', 'LPAREN'):
-                # Implicit multiplication: two adjacent primaries
+                # two things next to each other means implicit multiplication
                 right = parse_unary()
                 left  = ('binop', '*', left, right)
             else:
                 break
         return left
 
-    # ── unary: negation or hand-off to primary ───────────────────────────────
     def parse_unary():
+                # handles the negative sign in front of a number or expression
         if peek()[0] == 'OP' and peek()[1] == '-':
             consume()
-            operand = parse_unary()        # right-associative
+            operand = parse_unary()       
             return ('neg', operand)
+        # unary + is not allowed per the assignment spec
         if peek()[0] == 'OP' and peek()[1] == '+':
             raise ValueError("Unary '+' is not supported")
         return parse_primary()
 
-    # ── primary: number literal or parenthesised sub-expression ─────────────
     def parse_primary():
+                # handles a single number or a bracketed expression
         tok = peek()
         if tok[0] == 'NUM':
             consume()
@@ -160,23 +144,21 @@ def parse(tokens):
         raise ValueError(f"Unexpected token: {tok}")
 
     tree = parse_expr()
+        # if there are still tokens left after parsing, something is wrong
     if peek()[0] != 'END':
         raise ValueError(f"Unexpected token after expression: {peek()}")
     return tree
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AST → display string
-# ═══════════════════════════════════════════════════════════════════════════════
+# --- Tree to string ---
+# Converts the AST back into the required prefix notation string
+# e.g. (+ 3 5)  or  (neg (+ 3 4))
 
 def node_to_str(node):
-    """
-    Serialise an AST node to the required prefix notation, e.g.
-      (+ 3 5)   (neg (+ 3 4))   (* 2 (- 10 5))
-    """
+   
     kind = node[0]
     if kind == 'num':
         v = node[1]
+                # show whole numbers without decimal point e.g. 3 not 3.0
         return str(int(v)) if v == int(v) else str(v)
     if kind == 'neg':
         return f'(neg {node_to_str(node[1])})'
@@ -186,9 +168,8 @@ def node_to_str(node):
     raise ValueError(f"Unknown AST node kind: {kind!r}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Evaluator
-# ═══════════════════════════════════════════════════════════════════════════════
+# --- Evaluator ---
+# Walks the AST and calculates the final numeric result
 
 def eval_node(node):
     """Recursively evaluate an AST node.  Raises ZeroDivisionError as needed."""
@@ -211,37 +192,20 @@ def eval_node(node):
     raise ValueError(f"Unknown AST node kind: {kind!r}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Formatting helpers
-# ═══════════════════════════════════════════════════════════════════════════════
-
 def fmt_result(v):
-    """
-    Format a numeric result:
-      - whole numbers  →  no decimal point  (8.0 → '8')
-      - fractions      →  rounded to 4 d.p. (1.33333 → '1.3333')
-    """
+       # whole numbers show without decimal, fractions rounded to 4 places
+
     if v == int(v):
         return str(int(v))
     return f'{v:.4f}'
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Public API
-# ═══════════════════════════════════════════════════════════════════════════════
+# --- Main function ---
+# Reads the input file, processes each expression, writes output.txt
 
 def evaluate_file(input_path: str) -> list:
-    """
-    Read expressions (one per line) from *input_path*.
-    Write 'output.txt' to the same directory.
-    Return a list of dicts, one per expression:
-        {
-            'input':   str,           # original expression
-            'tree':    str,           # prefix-notation tree, or 'ERROR'
-            'tokens':  str,           # token string, or 'ERROR'
-            'result':  float | 'ERROR'
-        }
-    """
+        # output.txt goes in the same folder as the input file
+
     out_dir  = os.path.dirname(os.path.abspath(input_path))
     out_path = os.path.join(out_dir, 'output.txt')
 
@@ -252,6 +216,7 @@ def evaluate_file(input_path: str) -> list:
     output_blocks = []
 
     for expr in lines:
+                # default everything to ERROR, then update as each step succeeds
         entry = {
             'input':  expr,
             'tree':   'ERROR',
@@ -270,11 +235,12 @@ def evaluate_file(input_path: str) -> list:
             entry['result'] = val          # float on success
 
         except ZeroDivisionError:
-            pass   # tokens + tree were already set; result stays 'ERROR'
+                        # tree and tokens are fine, only the result fails
+            pass 
 
         except Exception:
-            pass   # tokens/tree may still be 'ERROR' – that is intentional
-
+                        # something went wrong earlier so tokens/tree stay as ERROR
+            pass  
         results.append(entry)
 
         # Build the four-line output block
@@ -293,11 +259,7 @@ def evaluate_file(input_path: str) -> list:
 
     return results
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLI entry point
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# run from command line: python evaluator.py <input_file>
 if __name__ == '__main__':
     import sys
 
