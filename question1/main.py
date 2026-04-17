@@ -17,13 +17,15 @@ def read_file(filename):
         return None
 
 def verify():
-    f = open("raw_text.txt", "r", encoding="utf-8")
-    raw_text = f.read()
-    f.close()
+    raw_text = read_file("raw_text.txt")
+    if raw_text is None:
+        print("Error: raw_text.txt not found. Please ensure the file exists.")
+        return
 
-    f = open("decrypted_text.txt", "r", encoding="utf-8")
-    decrypted_text = f.read()
-    f.close()
+    decrypted_text = read_file("decrypted_text.txt")
+    if decrypted_text is None:
+        print("Error: decrypted_text.txt not found. Please ensure the file exists.")
+        return
 
     if raw_text == decrypted_text:
         print("The decryption was successful.")
