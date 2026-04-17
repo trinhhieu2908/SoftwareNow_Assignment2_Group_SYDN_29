@@ -39,6 +39,9 @@ def main():
 
     verify()
 
+    test = encrypt("E", shift1, shift2)
+    print(test)
+
 
 if __name__ == "__main__":
     main()
