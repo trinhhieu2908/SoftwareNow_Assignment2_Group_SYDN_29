@@ -1,6 +1,20 @@
 from encrypt import encrypt
 from decrypt import decrypt
 
+def get_number(prompt):
+    while True:
+        try:
+            return int(input(prompt))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def read_file(filename):
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"Error: {filename} not found.")
+        return None
 
 def verify():
     f = open("raw_text.txt", "r", encoding="utf-8")
@@ -18,12 +32,13 @@ def verify():
 
 
 def main():
-    shift1 = int(input("Enter shift1: "))
-    shift2 = int(input("Enter shift2: "))
+    shift1 = get_number("Enter shift1: ")
+    shift2 = get_number("Enter shift2: ")
 
-    f = open("raw_text.txt", "r", encoding="utf-8")
-    raw_text = f.read()
-    f.close()
+    raw_text = read_file("raw_text.txt")
+    if raw_text is None:
+        print("Error: raw_text.txt not found. Please ensure the file exists.")
+        return
 
     encrypted = encrypt(raw_text, shift1, shift2)
 
