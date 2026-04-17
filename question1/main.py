@@ -1,6 +1,12 @@
 from encrypt import encrypt
 from decrypt import decrypt
 
+def get_number(prompt):
+    while True:
+        try:
+            return int(input(prompt))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
 def verify():
     f = open("raw_text.txt", "r", encoding="utf-8")
@@ -18,8 +24,8 @@ def verify():
 
 
 def main():
-    shift1 = int(input("Enter shift1: "))
-    shift2 = int(input("Enter shift2: "))
+    shift1 = get_number("Enter shift1: ")
+    shift2 = get_number("Enter shift2: ")
 
     f = open("raw_text.txt", "r", encoding="utf-8")
     raw_text = f.read()
